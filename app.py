@@ -1,118 +1,80 @@
 import streamlit as st
 import pandas as pd
 import pdfplumber
-from datetime import datetime
 import io
+import os
+from datetime import datetime
 
-st.set_page_config(page_title="Bot ÔMEGA", page_icon="⚖️", layout="wide")
-st.title("⚖️ Bot ÔMEGA")
-st.subheader("Análise Automática de Prescrição em CDAs e Execuções Fiscais")
+# Configuração da OpenAI
+try:
+    from openai import OpenAI
+    client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+    USE_OPENAI = True
+except Exception as e:
+    USE_OPENAI = False
+
+st.set_page_config(page_title="Prescrição Fácil", page_icon="✅", layout="wide")
+st.title("✅ Prescrição Fácil")
+st.subheader("Analise processos fiscais completos com inteligência artificial")
 
 st.markdown("""
-📥 Faça upload de um **arquivo CSV** ou **PDF com tabela** contendo as colunas:
-- `numero_cda`
-- `data_fato_gerador` (AAAA-MM-DD)
-- `data_inscricao` (AAAA-MM-DD)
-- `data_citacao` (AAAA-MM-DD)
-- `ultima_movimentacao` (AAAA-MM-DD)
-- `valor` (opcional)
-
-⚠️ **Dica**: PDF deve ter uma **tabela clara** (ex: relatório de sistema jurídico).
+📤 Envie um **PDF de processo jurídico** (ex: execução fiscal, certidão, sentença).  
+A IA vai extrair as datas e verificar prescrição **automaticamente**.
 """)
 
-# Modelo de CSV
-example_csv = pd.DataFrame({
-    "numero_cda": ["CDA-2015-00123"],
-    "data_fato_gerador": ["2010-03-10"],
-    "data_inscricao": ["2015-06-15"],
-    "data_citacao": ["2016-01-20"],
-    "ultima_movimentacao": ["2019-11-05"],
-    "valor": [5000.00]
-}).to_csv(index=False).encode('utf-8')
-
-st.download_button("⬇️ Baixar modelo CSV", example_csv, "exemplo_cdas.csv", "text/csv")
-
-# Upload
-uploaded_file = st.file_uploader("Escolha seu arquivo (CSV ou PDF)", type=["csv", "pdf"])
+uploaded_file = st.file_uploader("Escolha um PDF", type=["pdf"])
 
 if uploaded_file is not None:
     try:
-        if uploaded_file.name.endswith(".csv"):
-            df = pd.read_csv(uploaded_file)
-        elif uploaded_file.name.endswith(".pdf"):
-            # Extrair texto do PDF com pdfplumber
-            tables = []
-            with pdfplumber.open(io.BytesIO(uploaded_file.getvalue())) as pdf:
-                for page in pdf.pages:
-                    table = page.extract_table()
-                    if table:
-                        # Converte para DataFrame
-                        df_page = pd.DataFrame(table[1:], columns=table[0])
-                        tables.append(df_page)
-            if not tables:
-                st.error("❌ Nenhuma tabela encontrada no PDF.")
-                st.stop()
-            df = pd.concat(tables, ignore_index=True)
+        # Extrair todo o texto do PDF
+        full_text = ""
+        with pdfplumber.open(io.BytesIO(uploaded_file.getvalue())) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    full_text += text + "\n"
+        
+        if len(full_text.strip()) < 50:
+            st.error("❌ O PDF parece estar vazio ou sem texto selecionável.")
         else:
-            st.error("Formato não suportado.")
-            st.stop()
+            st.info(f"📄 PDF carregado com {len(full_text)} caracteres. Enviando para análise com IA...")
+            
+            if USE_OPENAI:
+                with st.spinner("🧠 Analisando com GPT-4..."):
+                    # Limita o texto para evitar erro de tamanho
+                    limited_text = full_text[:12000]
+                    
+                    response = client.chat.completions.create(
+                        model="gpt-4o-mini",
+                        messages=[
+                            {"role": "system", "content": "Você é um advogado especialista em direito tributário e prescrição. Responda de forma clara, técnica e útil."},
+                            {"role": "user", "content": f"""
+Analise o seguinte trecho de um processo de execução fiscal e:
 
-        # Verificar colunas obrigatórias
-        required_cols = ["numero_cda", "data_fato_gerador", "data_inscricao", "data_citacao", "ultima_movimentacao"]
-        if not all(col in df.columns for col in required_cols):
-            st.error(f"⚠️ Faltam colunas! Esperadas: {required_cols}")
-            st.stop()
+1. Extraia estas informações (se disponíveis):
+   - Data do fato gerador
+   - Data de inscrição na Dívida Ativa
+   - Data da citação válida
+   - Data da última movimentação útil
 
-        # Converter datas
-        for col in required_cols[1:]:  # exceto numero_cda
-            df[col] = pd.to_datetime(df[col], errors='coerce')
+2. Verifique:
+   - Prescrição inicial: 5 anos entre fato gerador e inscrição (CTN, art. 174)
+   - Prescrição intercorrente: 5 anos sem movimentação após citação (CPC, art. 202)
 
-        # Analisar prescrição
-        results = []
-        for _, row in df.iterrows():
-            # Prescrição inicial
-            if pd.notna(row["data_fato_gerador"]) and pd.notna(row["data_inscricao"]):
-                dias_fato_inscricao = (row["data_inscricao"] - row["data_fato_gerador"]).days
-                presc_inicial = dias_fato_inscricao > 5 * 365
+3. Dê um parecer final claro com recomendação prática.
+
+Texto do processo:
+{limited_text}
+                            """}
+                        ],
+                        temperature=0.3,
+                        max_tokens=1000
+                    )
+                    
+                    st.markdown("### 📝 **Análise da IA (GPT-4)**")
+                    st.write(response.choices[0].message.content)
             else:
-                presc_inicial = False
-
-            # Prescrição intercorrente
-            if pd.notna(row["data_citacao"]) and pd.notna(row["ultima_movimentacao"]):
-                dias_sem_mov = (datetime.now() - row["ultima_movimentacao"]).days
-                presc_inter = dias_sem_mov > 5 * 365
-            else:
-                presc_inter = False
-
-            # Decisão
-            if presc_inicial:
-                status, risco, rec = "🟢 Prescrição Inicial", "Baixo", "Prescrição reconhecida – CDA nula"
-            elif presc_inter:
-                status, risco, rec = "🟡 Prescrição Intercorrente", "Médio", "Sugerir impugnação"
-            else:
-                status, risco, rec = "🔴 Sem prescrição aparente", "Alto", "Monitorar"
-
-            results.append({
-                "CDA": row["numero_cda"],
-                "Status": status,
-                "Risco": risco,
-                "Recomendação": rec
-            })
-
-        result_df = pd.DataFrame(results)
-        st.success("✅ Análise concluída!")
-        st.dataframe(result_df.style.map(
-            lambda x: "background-color: #d4edda" if "🟢" in str(x) else (
-                "background-color: #fff3cd" if "🟡" in str(x) else "background-color: #f8d7da"
-            ), subset=["Status"]
-        ))
-
-        st.download_button(
-            "⬇️ Baixar resultado",
-            result_df.to_csv(index=False).encode('utf-8'),
-            "resultado_bot_omega.csv",
-            "text/csv"
-        )
+                st.error("⚠️ Erro: IA não configurada. Verifique a chave OPENAI_API_KEY no Render.")
 
     except Exception as e:
-        st.error(f"Erro ao processar: {str(e)}")
+        st.error(f"Erro ao processar o PDF: {str(e)}")
