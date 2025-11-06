@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 import pdfplumber
 import io
 import os
@@ -13,7 +12,27 @@ try:
 except Exception as e:
     USE_OPENAI = False
 
+# Estilo personalizado
 st.set_page_config(page_title="Prescrição Fácil", page_icon="✅", layout="wide")
+st.markdown("""
+<style>
+    .stApp {
+        background-color: #f8f9fa;
+    }
+    h1 {
+        color: #1a365d;
+        font-family: 'Helvetica', sans-serif;
+    }
+    .analysis-box {
+        background-color: #ffffff;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 5px solid #1a365d;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+</style>
+""", unsafe_allow_html=True)
+
 st.title("✅ Prescrição Fácil")
 st.subheader("Analise processos fiscais completos com inteligência artificial")
 
@@ -71,8 +90,24 @@ Texto do processo:
                         max_tokens=1000
                     )
                     
+                    # Exibir resultado em bloco bonito
                     st.markdown("### 📝 **Análise da IA (GPT-4)**")
-                    st.write(response.choices[0].message.content)
+                    st.markdown(f'<div class="analysis-box">{response.choices[0].message.content}</div>', unsafe_allow_html=True)
+                    
+                    # Botão para baixar o relatório
+                    report_content = f"""
+ANÁLISE AUTOMÁTICA DE PREScriÇÃO FISCAL
+========================================
+{response.choices[0].message.content}
+
+Gerado em: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
+"""
+                    st.download_button(
+                        label="⬇️ Baixar relatório em texto",
+                        data=report_content.encode('utf-8'),
+                        file_name="relatorio_prescricao.txt",
+                        mime="text/plain"
+                    )
             else:
                 st.error("⚠️ Erro: IA não configurada. Verifique a chave OPENAI_API_KEY no Render.")
 
