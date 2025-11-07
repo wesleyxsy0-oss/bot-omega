@@ -12,7 +12,7 @@ try:
 except Exception as e:
     USE_OPENAI = False
 
-# Estilo personalizado
+# Estilo personalizado (sem comentários dentro do <style>)
 st.set_page_config(page_title="Prescrição Fácil", page_icon="✅", layout="wide")
 st.markdown("""
 <style>
@@ -22,13 +22,26 @@ st.markdown("""
     h1 {
         color: #1a365d;
         font-family: 'Helvetica', sans-serif;
+        font-weight: bold;
+    }
+    h2 {
+        color: #2c3e50;
+        font-family: 'Helvetica', sans-serif;
     }
     .analysis-box {
-        background-color: #ffffff;
+        background-color: white;
         padding: 20px;
         border-radius: 10px;
         border-left: 5px solid #1a365d;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-top: 20px;
+    }
+    .upload-area {
+        border: 2px dashed #ccc;
+        border-radius: 10px;
+        padding: 20px;
+        text-align: center;
+        background-color: #f1f3f5;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -41,7 +54,7 @@ st.markdown("""
 A IA vai extrair as datas e verificar prescrição **automaticamente**.
 """)
 
-uploaded_file = st.file_uploader("Escolha um PDF", type=["pdf"])
+uploaded_file = st.file_uploader("Escolha um PDF", type=["pdf"], label_visibility="collapsed")
 
 if uploaded_file is not None:
     try:
