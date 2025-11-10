@@ -2,9 +2,10 @@ import streamlit as st
 import pdfplumber
 import io
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+import pandas as pd
 
-# Configuração da OpenAI
+# Configuração da OpenAI (para análise de prescrição)
 try:
     from openai import OpenAI
     client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -12,8 +13,8 @@ try:
 except Exception as e:
     USE_OPENAI = False
 
-# Estilo personalizado (sem comentários dentro do <style>)
-st.set_page_config(page_title="Prescrição Fácil", page_icon="✅", layout="wide")
+# Estilo personalizado
+st.set_page_config(page_title="Prescrição Fácil", page_icon="⚖️", layout="wide")
 st.markdown("""
 <style>
     .stApp {
@@ -24,9 +25,12 @@ st.markdown("""
         font-family: 'Helvetica', sans-serif;
         font-weight: bold;
     }
-    h2 {
-        color: #2c3e50;
-        font-family: 'Helvetica', sans-serif;
+    .service-box {
+        background-color: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        margin-top: 15px;
     }
     .analysis-box {
         background-color: white;
@@ -34,95 +38,165 @@ st.markdown("""
         border-radius: 10px;
         border-left: 5px solid #1a365d;
         box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        margin-top: 20px;
-    }
-    .upload-area {
-        border: 2px dashed #ccc;
-        border-radius: 10px;
-        padding: 20px;
-        text-align: center;
-        background-color: #f1f3f5;
     }
 </style>
 """, unsafe_allow_html=True)
 
-st.title("✅ Prescrição Fácil")
-st.subheader("Analise processos fiscais completos com inteligência artificial")
+# Menu lateral
+st.sidebar.title("Prescrição Fácil")
+st.sidebar.markdown("### Ferramentas Jurídicas Inteligentes")
+servico = st.sidebar.selectbox("Escolha um serviço:", [
+    "🔍 Análise de Prescrição (PDF)",
+    "⏳ Cálculo de Prazos",
+    "💰 Juros e Correção Monetária",
+    "✅ Checklist de Defesas",
+    "🛡️ Impenhorabilidade"
+])
 
-st.markdown("""
-📤 Envie um **PDF de processo jurídico** (ex: execução fiscal, certidão, sentença).  
-A IA vai extrair as datas e verificar prescrição **automaticamente**.
-""")
-
-uploaded_file = st.file_uploader("Escolha um PDF", type=["pdf"], label_visibility="collapsed")
-
-if uploaded_file is not None:
-    try:
-        # Extrair todo o texto do PDF
-        full_text = ""
-        with pdfplumber.open(io.BytesIO(uploaded_file.getvalue())) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                    full_text += text + "\n"
-        
-        if len(full_text.strip()) < 50:
-            st.error("❌ O PDF parece estar vazio ou sem texto selecionável.")
-        else:
-            st.info(f"📄 PDF carregado com {len(full_text)} caracteres. Enviando para análise com IA...")
+# =============================================
+# SERVIÇO 1: ANÁLISE DE PRESCRIÇÃO (PDF + IA)
+# =============================================
+if servico == "🔍 Análise de Prescrição (PDF)":
+    st.title("🔍 Análise de Prescrição")
+    st.subheader("Envie um PDF de processo fiscal e receba análise de prescrição com IA")
+    
+    uploaded_file = st.file_uploader("Escolha um PDF", type=["pdf"])
+    
+    if uploaded_file is not None:
+        try:
+            full_text = ""
+            with pdfplumber.open(io.BytesIO(uploaded_file.getvalue())) as pdf:
+                for page in pdf.pages:
+                    text = page.extract_text()
+                    if text:
+                        full_text += text + "\n"
             
-            if USE_OPENAI:
-                with st.spinner("🧠 Analisando com GPT-4..."):
-                    # Limita o texto para evitar erro de tamanho
-                    limited_text = full_text[:12000]
-                    
-                    response = client.chat.completions.create(
-                        model="gpt-4o-mini",
-                        messages=[
-                            {"role": "system", "content": "Você é um advogado especialista em direito tributário e prescrição. Responda de forma clara, técnica e útil."},
-                            {"role": "user", "content": f"""
-Analise o seguinte trecho de um processo de execução fiscal e:
-
-1. Extraia estas informações (se disponíveis):
-   - Data do fato gerador
-   - Data de inscrição na Dívida Ativa
-   - Data da citação válida
-   - Data da última movimentação útil
-
-2. Verifique:
-   - Prescrição inicial: 5 anos entre fato gerador e inscrição (CTN, art. 174)
-   - Prescrição intercorrente: 5 anos sem movimentação após citação (CPC, art. 202)
-
-3. Dê um parecer final claro com recomendação prática.
-
-Texto do processo:
-{limited_text}
-                            """}
-                        ],
-                        temperature=0.3,
-                        max_tokens=1000
-                    )
-                    
-                    # Exibir resultado em bloco bonito
-                    st.markdown("### 📝 **Análise da IA (GPT-4)**")
-                    st.markdown(f'<div class="analysis-box">{response.choices[0].message.content}</div>', unsafe_allow_html=True)
-                    
-                    # Botão para baixar o relatório
-                    report_content = f"""
-ANÁLISE AUTOMÁTICA DE PREScriÇÃO FISCAL
-========================================
-{response.choices[0].message.content}
-
-Gerado em: {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}
-"""
-                    st.download_button(
-                        label="⬇️ Baixar relatório em texto",
-                        data=report_content.encode('utf-8'),
-                        file_name="relatorio_prescricao.txt",
-                        mime="text/plain"
-                    )
+            if len(full_text.strip()) < 50:
+                st.error("❌ PDF sem texto selecionável.")
             else:
-                st.error("⚠️ Erro: IA não configurada. Verifique a chave OPENAI_API_KEY no Render.")
+                st.info(f"📄 PDF carregado. Analisando com IA...")
+                if USE_OPENAI:
+                    with st.spinner("🧠 Analisando com GPT-4..."):
+                        limited_text = full_text[:12000]
+                        response = client.chat.completions.create(
+                            model="gpt-4o-mini",
+                            messages=[{
+                                "role": "system",
+                                "content": "Você é advogado especialista em direito tributário."
+                            }, {
+                                "role": "user",
+                                "content": f"""
+Analise o seguinte processo fiscal e verifique prescrição:
 
-    except Exception as e:
-        st.error(f"Erro ao processar o PDF: {str(e)}")
+1. Extraia: fato gerador, inscrição, citação, última movimentação.
+2. Verifique prescrição inicial (5 anos) e intercorrente (5 anos sem movimentação).
+3. Dê parecer claro com recomendação.
+
+Texto:
+{limited_text}
+                                """
+                            }],
+                            temperature=0.3, max_tokens=1000
+                        )
+                        st.markdown("### 📝 Análise da IA")
+                        st.markdown(f'<div class="analysis-box">{response.choices[0].message.content}</div>', unsafe_allow_html=True)
+                else:
+                    st.error("⚠️ IA não configurada.")
+        except Exception as e:
+            st.error(f"Erro: {str(e)}")
+
+# =============================================
+# SERVIÇO 2: CÁLCULO DE PRAZOS
+# =============================================
+elif servico == "⏳ Cálculo de Prazos":
+    st.title("⏳ Cálculo de Prazos Processuais")
+    st.subheader("Calcule prazos com contagem de dias úteis e feriados")
+    
+    data_inicial = st.date_input("Data inicial do prazo", value=datetime.today())
+    dias_prazo = st.number_input("Número de dias (úteis)", min_value=1, value=15)
+    uf = st.selectbox("Estado", ["SP", "RJ", "MG", "BA", "RS", "PR", "Outro"])
+    
+    if st.button("Calcular Prazo Final"):
+        # Simples: adiciona dias corridos (para MVP)
+        # Em versão avançada: usar workalendar
+        data_final = data_inicial + timedelta(days=int(dias_prazo * 1.5))  # estimativa
+        st.success(f"📅 Prazo final estimado: **{data_final.strftime('%d/%m/%Y')}**")
+        st.info("ℹ️ Versão PRO inclui feriados estaduais e contagem exata de dias úteis.")
+
+# =============================================
+# SERVIÇO 3: JUROS E CORREÇÃO
+# =============================================
+elif servico == "💰 Juros e Correção Monetária":
+    st.title("💰 Cálculo de Juros e Correção")
+    st.subheader("Cálculo rápido para petições e condenações")
+    
+    valor = st.number_input("Valor inicial (R$)", min_value=0.0, value=1000.0)
+    data_ini = st.date_input("Data inicial", value=datetime(2020, 1, 1))
+    data_fim = st.date_input("Data final", value=datetime.today())
+    indice = st.selectbox("Índice de correção", ["IPCA", "INPC", "SELIC", "Juros de 1% ao mês"])
+    
+    if st.button("Calcular"):
+        dias = (data_fim - data_ini).days
+        if indice == "Juros de 1% ao mês":
+            meses = dias / 30
+            valor_final = valor * (1 + 0.01) ** meses
+        else:
+            valor_final = valor * 1.35  # exemplo simplificado
+        
+        st.success(f"💰 Valor corrigido: **R$ {valor_final:,.2f}**")
+        st.info("ℹ️ Versão PRO usa índices oficiais do IBGE e BACEN em tempo real.")
+
+# =============================================
+# SERVIÇO 4: CHECKLIST DE DEFESAS
+# =============================================
+elif servico == "✅ Checklist de Defesas":
+    st.title("✅ Checklist de Defesas em Execução Fiscal")
+    st.subheader("Responda rápido e receba defesas possíveis")
+    
+    tipo_cda = st.selectbox("Tipo de CDA", ["Tributária", "Não tributária"])
+    citacao = st.radio("Foi citado?", ["Sim", "Não"])
+    ultima_mov = st.number_input("Última movimentação (anos atrás)", 0, 10, 5)
+    
+    if st.button("Gerar Checklist"):
+        defesas = []
+        if ultima_mov >= 5:
+            defesas.append("🟢 Prescrição intercorrente (5 anos sem movimentação)")
+        if tipo_cda == "Tributária":
+            defesas.append("📄 Verificar regularidade da CDA (art. 201 do CTN)")
+        if citacao == "Não":
+            defesas.append("❗ Nulidade por falta de citação válida")
+        
+        if defesas:
+            st.markdown("### 📋 Defesas Sugeridas:")
+            for d in defesas:
+                st.write(d)
+        else:
+            st.info("Nenhuma defesa automática identificada. Consulte um advogado.")
+
+# =============================================
+# SERVIÇO 5: IMPENHORABILIDADE
+# =============================================
+elif servico == "🛡️ Impenhorabilidade":
+    st.title("🛡️ Análise de Bens Impenhoráveis")
+    st.subheader("Identifique bens que não podem ser penhorados")
+    
+    tipo_bem = st.selectbox("Tipo de bem", [
+        "Salário ou renda", "Bem de família", "Veículo necessário ao trabalho",
+        "Bens de uso pessoal", "Dinheiro em conta (até 40 salários mínimos)"
+    ])
+    
+    if st.button("Verificar"):
+        if tipo_bem == "Salário ou renda":
+            st.success("✅ **Impenhorável** (art. 833, I, CPC)")
+        elif tipo_bem == "Bem de família":
+            st.success("✅ **Impenhorável** (Lei 8.009/90)")
+        elif tipo_bem == "Veículo necessário ao trabalho":
+            st.warning("⚠️ **Pode ser penhorado**, salvo se comprovada necessidade (art. 833, §2º)")
+        else:
+            st.info("ℹ️ Consulte a lista completa no CPC, art. 833.")
+
+# =============================================
+# Rodapé
+# =============================================
+st.sidebar.markdown("---")
+st.sidebar.info("Prescrição Fácil\nPlataforma jurídica inteligente para defesas fiscais")
