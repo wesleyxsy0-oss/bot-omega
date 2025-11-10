@@ -1,5 +1,2 @@
 streamlit
-pandas
-numpy
-pdfplumber
-openai
+pyrebase4
