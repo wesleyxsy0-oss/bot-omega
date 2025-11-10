@@ -3,7 +3,7 @@ import base64
 from datetime import datetime
 import pyrebase
 
-# 🔑 Configuração do Firebase — já com seus dados reais
+# 🔑 CONFIGURE AQUI SUAS CREDENCIAIS DO FIREBASE
 firebase_config = {
     "apiKey": "AIzaSyAj0SlpJXb8xEzL8vWxpaCOqrjU4MsiaeQ",
     "authDomain": "comunica-guarulhos.firebaseapp.com",
@@ -14,33 +14,164 @@ firebase_config = {
     "appId": "1:849187017943:web:b2f85534675f432c3e4c92"
 }
 
-# Função para inicializar o Firebase (só uma vez)
+# Função para inicializar o Firebase
 @st.cache_resource
 def init_firebase():
     return pyrebase.initialize_app(firebase_config)
 
-# Estilo do app
+# Estilo mobile-first
 st.set_page_config(page_title="Guarulhos Fácil", page_icon="🏙️", layout="centered")
 st.markdown("""
 <style>
-    .stApp { background-color: #f8f9fa; }
-    h1 { color: #0d1b2a; text-align: center; font-weight: 700; }
-    h2 { color: #1e293b; }
-    .problem-card {
-        background: white;
-        padding: 16px;
-        border-radius: 10px;
-        margin: 12px 0;
-        border-left: 4px solid #f99417;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    /* Mobile */
+    @media (max-width: 768px) {
+        .stApp { background-color: #f8f9fa; }
+        h1 { font-size: 1.5rem; color: #0d1b2a; text-align: center; font-weight: 700; }
+        h2 { font-size: 1.2rem; color: #1e293b; }
+        .problem-card {
+            background: white;
+            padding: 16px;
+            border-radius: 10px;
+            margin: 12px 0;
+            border-left: 4px solid #f99417;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .stButton > button {
+            width: 100%;
+            background-color: #f99417;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+        }
+        .stButton > button:hover {
+            background-color: #e07a00;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(249, 148, 23, 0.3);
+        }
+        .stTextInput > div > div > input {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1rem;
+        }
+        .stSelectbox > div > div > select {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1rem;
+        }
+        .stFileUploader > div > div > button {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1rem;
+            width: 100%;
+        }
+        .stTextArea > div > div > textarea {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1rem;
+            height: 100px;
+        }
+        .stNumberInput > div > div > input {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1rem;
+        }
+        .footer {
+            font-size: 0.85rem;
+            color: #64748b;
+            text-align: center;
+            margin-top: 2rem;
+            padding: 1rem;
+            border-top: 1px solid #e2e8f0;
+        }
     }
-    .footer {
-        font-size: 0.85rem;
-        color: #64748b;
-        text-align: center;
-        margin-top: 2rem;
-        padding: 1rem;
-        border-top: 1px solid #e2e8f0;
+
+    /* Desktop */
+    @media (min-width: 769px) {
+        .stApp { background-color: #f8f9fa; }
+        h1 { font-size: 2rem; color: #0d1b2a; text-align: center; font-weight: 700; }
+        h2 { font-size: 1.5rem; color: #1e293b; }
+        .problem-card {
+            background: white;
+            padding: 1.75rem;
+            border-radius: 12px;
+            margin: 1.5rem 0;
+            border-left: 4px solid #f99417;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+        }
+        .stButton > button {
+            background-color: #f99417;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.25rem;
+            font-weight: 600;
+            font-size: 1.1rem;
+            transition: all 0.3s ease;
+        }
+        .stButton > button:hover {
+            background-color: #e07a00;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(249, 148, 23, 0.3);
+        }
+        .stTextInput > div > div > input {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1rem;
+        }
+        .stSelectbox > div > div > select {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1rem;
+        }
+        .stFileUploader > div > div > button {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1rem;
+            width: 100%;
+        }
+        .stTextArea > div > div > textarea {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1rem;
+            height: 150px;
+        }
+        .stNumberInput > div > div > input {
+            background-color: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 0.75rem;
+            font-size: 1rem;
+        }
+        .footer {
+            font-size: 0.85rem;
+            color: #64748b;
+            text-align: center;
+            margin-top: 2.5rem;
+            padding: 1.25rem;
+            border-top: 1px solid #e2e8f0;
+        }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -56,7 +187,7 @@ tab1, tab2 = st.tabs(["📤 Denunciar", "🗺️ Na sua região"])
 # =====================
 with tab1:
     st.markdown("Sua denúncia será enviada à **Ouvidoria Municipal de Guarulhos**.")
-    st.caption("Anônimo • Seguro • Foco em soluções")
+    st.caption("Anônima • Segura • Foco em soluções")
 
     tipo = st.selectbox("Tipo de problema", [
         "Buraco na via",
@@ -78,11 +209,9 @@ with tab1:
     
     if st.button("Enviar denúncia", type="primary"):
         try:
-            # Inicializa Firebase
             firebase = init_firebase()
             db = firebase.database()
             
-            # Salva denúncia
             denuncia = {
                 "tipo": tipo,
                 "descricao": descricao,
@@ -99,7 +228,6 @@ with tab1:
             
         except Exception as e:
             st.error(f"❌ Erro: {str(e)}")
-            st.warning("Verifique a conexão com a internet e as permissões do Firebase.")
 
 # =====================
 # TAB 2: PROBLEMAS NA REGIÃO
