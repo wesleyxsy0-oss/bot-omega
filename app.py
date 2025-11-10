@@ -3,18 +3,15 @@ import base64
 from datetime import datetime
 import pyrebase
 
-# 🔑 🔑 🔑 CONFIGURE AQUI SUAS CREDENCIAIS DO FIREBASE 🔑 🔑 🔑
-# Vá em https://console.firebase.google.com/ → seu projeto → "Configurações do projeto" → "Seus apps"
-# Copie os valores e cole abaixo:
-
+# 🔑 Configuração do Firebase — já com seus dados reais
 firebase_config = {
-    "apiKey": "COLE-AQUI-SUA-APIKEY",  # Ex: "AIzaSyB123..."
-    "authDomain": "SEU-PROJETO.firebaseapp.com",
-    "databaseURL": "https://SEU-PROJETO-default-rtdb.firebaseio.com",
-    "projectId": "SEU-PROJETO",
-    "storageBucket": "SEU-PROJETO.appspot.com",
-    "messagingSenderId": "SEU-SENDER-ID",
-    "appId": "SEU-APP-ID"
+    "apiKey": "AIzaSyAj0SlpJXb8xEzL8vWxpaCOqrjU4MsiaeQ",
+    "authDomain": "comunica-guarulhos.firebaseapp.com",
+    "databaseURL": "https://comunica-guarulhos-default-rtdb.firebaseio.com",
+    "projectId": "comunica-guarulhos",
+    "storageBucket": "comunica-guarulhos.firebasestorage.app",
+    "messagingSenderId": "849187017943",
+    "appId": "1:849187017943:web:b2f85534675f432c3e4c92"
 }
 
 # Função para inicializar o Firebase (só uma vez)
@@ -92,7 +89,7 @@ with tab1:
                 "lat": lat,
                 "lng": lng,
                 "data": datetime.now().isoformat(),
-                "confirmacoes": 1,  # Começa com 1 (quem denunciou)
+                "confirmacoes": 1,
                 "resolvido": 0
             }
             
@@ -102,7 +99,7 @@ with tab1:
             
         except Exception as e:
             st.error(f"❌ Erro: {str(e)}")
-            st.warning("Verifique se as credenciais do Firebase estão corretas no código.")
+            st.warning("Verifique a conexão com a internet e as permissões do Firebase.")
 
 # =====================
 # TAB 2: PROBLEMAS NA REGIÃO
@@ -117,7 +114,6 @@ with tab2:
         denuncias = db.child("denuncias").get().val()
         
         if denuncias:
-            # Filtra só com ≥2 confirmações
             confirmadas = {k: v for k, v in denuncias.items() if v.get("confirmacoes", 0) >= 2}
             
             if confirmadas:
