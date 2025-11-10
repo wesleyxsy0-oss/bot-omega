@@ -12,81 +12,96 @@ try:
 except Exception as e:
     USE_OPENAI = False
 
-# Estilo minimalista inspirado na interface Qwen
+# Estilo com cores da Kiwify (profissional + destaque âmbar)
 st.set_page_config(page_title="Prescrição Fácil", page_icon="⚖️", layout="wide")
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 .stApp {
-    background-color: #ffffff;
+    background-color: #f8f9fa;
     font-family: 'Inter', sans-serif;
-    color: #1f2937;
+    color: #1e293b;
 }
 
 h1, h2, h3, h4, h5 {
-    font-weight: 600;
-    color: #111827;
-    margin-bottom: 0.5rem;
+    color: #0d1b2a;
+    font-weight: 700;
 }
 
-p, li {
-    color: #374151;
+p, li, .stMarkdown {
+    color: #1e293b;
     line-height: 1.6;
 }
 
 .stButton > button {
-    background-color: #f3f4f6;
-    color: #1f2937;
-    border: 1px solid #d1d5db;
-    border-radius: 6px;
-    padding: 0.4rem 1rem;
-    font-weight: 500;
+    background-color: #f99417;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    padding: 0.5rem 1.25rem;
+    font-weight: 600;
+    font-size: 1rem;
     transition: background-color 0.2s;
 }
 
 .stButton > button:hover {
-    background-color: #e5e7eb;
+    background-color: #e07a00;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(249, 148, 23, 0.3);
 }
 
 .service-container {
     background-color: #ffffff;
-    padding: 1.5rem;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
-    margin-top: 1.25rem;
+    padding: 1.75rem;
+    border-radius: 12px;
+    border: 1px solid #e2e8f0;
+    margin-top: 1.5rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
 }
 
 .analysis-result {
-    background-color: #f9fafb;
-    padding: 1.5rem;
-    border-radius: 8px;
-    border-left: 2px solid #d1d5db;
-    margin-top: 1.25rem;
+    background-color: #ffffff;
+    padding: 1.75rem;
+    border-radius: 12px;
+    border-left: 4px solid #f99417;
+    margin-top: 1.5rem;
     font-size: 0.95rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.03);
 }
 
 .sidebar .sidebar-content {
     background-color: #ffffff;
-    padding: 1.25rem;
-    border-radius: 8px;
-    border: 1px solid #e5e7eb;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    border: 1px solid #e2e8f0;
+}
+
+.sidebar .sidebar-content h1,
+.sidebar .sidebar-content h2 {
+    color: #0d1b2a;
+}
+
+.selectbox-label,
+.radio-label {
+    color: #0d1b2a !important;
 }
 
 footer {
     font-size: 0.85rem;
-    color: #6b7280;
+    color: #64748b;
     text-align: center;
     margin-top: 2.5rem;
-    padding: 1rem;
-    border-top: 1px solid #e5e7eb;
+    padding: 1.25rem;
+    border-top: 1px solid #e2e8f0;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# Menu lateral minimalista
+# Menu lateral com cores da Kiwify
 with st.sidebar:
-    st.markdown("### Prescrição Fácil")
+    st.markdown("<h2 style='color:#0d1b2a;'>Prescrição Fácil</h2>", unsafe_allow_html=True)
     st.caption("Ferramentas jurídicas inteligentes")
     servico = st.selectbox("Escolha um serviço", [
         "🔍 Análise de Prescrição (PDF)",
@@ -99,8 +114,8 @@ with st.sidebar:
     st.caption("Plataforma para defesas fiscais")
 
 # Cabeçalho principal
-st.title("Prescrição Fácil")
-st.markdown("Análise jurídica inteligente para execuções fiscais")
+st.markdown("<h1 style='color:#0d1b2a;'>Prescrição Fácil</h1>", unsafe_allow_html=True)
+st.markdown("Análise jurídica inteligente com foco em resultados reais")
 
 # =============================================
 # SERVIÇO 1: ANÁLISE DE PRESCRIÇÃO (PDF + IA)
@@ -251,4 +266,4 @@ elif servico == "🛡️ Impenhorabilidade":
         st.markdown('</div>', unsafe_allow_html=True)
 
 # Rodapé
-st.markdown('<footer>Prescrição Fácil © 2025</footer>', unsafe_allow_html=True)
+st.markdown('<footer>Prescrição Fácil © 2025 — Plataforma jurídica inteligente</footer>', unsafe_allow_html=True)
