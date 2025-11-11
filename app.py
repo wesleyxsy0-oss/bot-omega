@@ -1,7 +1,6 @@
 import streamlit as st
 import firebase_admin
 from firebase_admin import credentials, firestore
-import time
 
 # --- CONFIGURAÇÃO DO FIREBASE ---
 if not firebase_admin._apps:
@@ -20,15 +19,9 @@ st.set_page_config(
     layout="centered"
 )
 
-# --- ESTILO CSS PARA LAYOUT IGUAL AO DO APP ---
+# --- ESTILO CSS ---
 st.markdown("""
 <style>
-    .main {
-        background-color: #f9fafb;
-        padding: 20px;
-        border-radius: 10px;
-        margin-bottom: 20px;
-    }
     .menu-item {
         display: flex;
         flex-direction: column;
@@ -50,37 +43,6 @@ st.markdown("""
         height: 50px;
         margin-bottom: 10px;
     }
-    .footer {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        background: white;
-        padding: 10px;
-        display: flex;
-        justify-content: space-around;
-        box-shadow: 0 -2px 5px rgba(0,0,0,0.1);
-        z-index: 999;
-    }
-    .footer button {
-        background: none;
-        border: none;
-        font-size: 12px;
-        padding: 5px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        color: #666;
-    }
-    .footer button.selected {
-        color: #009688;
-        font-weight: bold;
-    }
-    .footer img {
-        width: 25px;
-        height: 25px;
-        margin-bottom: 5px;
-    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -93,7 +55,7 @@ def load_icon(path):
         st.warning(f"⚠️ Ícone não encontrado: {path}")
         return "https://via.placeholder.com/50?text=Icon"
 
-# --- NAVEGAÇÃO PRINCIPAL ---
+# --- NAVEGAÇÃO ---
 if "page" not in st.session_state:
     st.session_state.page = "inicio"
 
@@ -102,8 +64,6 @@ st.image("https://via.placeholder.com/300x100?text=Comunica+Sua+Cidade", use_col
 st.markdown("<h3 style='text-align: center;'>Sua voz constrói a cidade</h3>", unsafe_allow_html=True)
 
 # --- PAINEL RÁPIDO (4 BOTÕES) ---
-st.subheader("Painel Rápido")
-
 col1, col2 = st.columns(2)
 col3, col4 = st.columns(2)
 
@@ -173,12 +133,11 @@ elif st.session_state.page == "comunicar":
 
 elif st.session_state.page == "demandas":
     st.header("📋 Minhas Demandas")
-    st.write("Aqui você verá suas denúncias enviadas.")
-    st.info("Nenhuma demanda registrada ainda.")
+    st.info("Aqui você verá suas denúncias enviadas.")
 
 elif st.session_state.page == "mapa":
     st.header("🗺️ Mapa de Ocorrências")
-    st.map()  # Mapa básico — depois podemos melhorar com dados reais
+    st.map()
     st.info("Em breve: mapa interativo com todas as denúncias!")
 
 elif st.session_state.page == "servicos":
@@ -187,45 +146,3 @@ elif st.session_state.page == "servicos":
     st.markdown("- **Prefeitura:** (XX) XXXX-XXXX")
     st.markdown("- **Limpeza Urbana:** (XX) XXXX-XXXX")
     st.markdown("- **Iluminação Pública:** (XX) XXXX-XXXX")
-
-# --- BARA DE NAVEGAÇÃO INFERIOR ---
-st.markdown("<hr>", unsafe_allow_html=True)
-st.markdown("""
-<div class="footer">
-    <button class="{}" onclick="window.location.reload()">
-        <img src="{}" alt="Início">
-        Início
-    </button>
-    <button class="{}">
-        <img src="{}" alt="Minhas Demandas">
-        Minhas Demandas
-    </button>
-    <button class="{}">
-        <img src="{}" alt="Nova Comunicação">
-        <span style="font-size: 24px; color: #009688;">+</span>
-    </button>
-    <button class="{}">
-        <img src="{}" alt="Ouvidoria">
-        Ouvidoria
-    </button>
-    <button class="{}">
-        <img src="{}" alt="Mais">
-        Mais
-    </button>
-</div>
-""".format(
-    "selected" if st.session_state.page == "inicio" else "",
-    load_icon('static/icone_home.png'),
-    "selected" if st.session_state.page == "demandas" else "",
-    load_icon('static/icone_demandas.png'),
-    "",  # Botão central (não tem estado)
-    "selected" if st.session_state.page == "comunicar" else "",
-    load_icon('static/icone_comunicar.png'),
-    "selected" if st.session_state.page == "servicos" else "",
-    load_icon('static/icone_servicos.png'),
-    "selected" if st.session_state.page == "ouvidoria" else "",
-    load_icon('static/icone_ouvidoria.png')
-), unsafe_allow_html=True)
-
-# --- NOTA: O botão central "+" não funciona em Streamlit nativo — mas pode abrir nova denúncia
-# Se quiser, posso fazer ele abrir o formulário de denúncia diretamente.
