@@ -8,9 +8,12 @@ import uuid
 # =======================================================
 # 🔑 1. CONFIGURAÇÃO DE SEGURANÇA E FIREBASE
 # =======================================================
-# !!! IMPORTANTE: NUNCA DEIXE SUAS CHAVES AQUI. USE st.secrets !!!
+# !!! IMPORTANTE: NUNCA DEIXE SUAS CHAVES AQUI. USE st.secrets NO DEPLOY !!!
+# Para testes locais, você pode preencher os valores abaixo, MAS É INSEGURO.
+# O ideal é usar st.secrets (veja o exemplo comentado).
+
+# Forma RECOMENDADA: Usar st.secrets (você configura no Streamlit Cloud ou em variáveis de ambiente)
 try:
-    # Tentativa de carregar as credenciais de forma segura (Recomendado para deploy)
     firebase_config = {
         "apiKey": st.secrets["firebase"]["api_key"],
         "authDomain": st.secrets["firebase"]["auth_domain"],
@@ -21,14 +24,16 @@ try:
         "appId": st.secrets["firebase"]["app_id"],
     }
 except:
-    # Se você estiver rodando localmente (SUBSTITUA PELAS SUAS CREDENCIAIS REAIS)
+    # Forma INSEGURO: Credenciais HARDCODED para testes LOCAIS apenas.
+    # Substitua pelas suas credenciais do Firebase Console.
+    # LEMBRE-SE DE NUNCA SUBIR ISSO PARA UM REPOSITÓRIO PÚBLICO.
     st.warning("⚠️ Usando credenciais HARDCODED. Configure st.secrets no deploy!")
     firebase_config = {
         "apiKey": "AIzaSyAj0SlpJXb8xEzL8vWxpaCOqrjU4MsiaeQ", # SUBSTITUA PELA SUA CHAVE
         "authDomain": "comunica-guarulhos.firebaseapp.com",
-        "databaseURL": "https://comunica-guarulhos-default-rtdb.firebaseio.com",
+        "databaseURL": "https://comunica-guarulhos-default-rtdb.firebaseio.com", # Removi espaço extra
         "projectId": "comunica-guarulhos",
-        "storageBucket": "comunica-guarulhos.appspot.com", # Geralmente é appspot.com
+        "storageBucket": "comunica-guarulhos.appspot.com",
         "messagingSenderId": "849187017943",
         "appId": "1:849187017943:web:b2f85534675f432c3e4c92"
     }
@@ -37,7 +42,12 @@ except:
 # Inicializa o Firebase
 @st.cache_resource
 def init_firebase():
-    return pyrebase.initialize_app(firebase_config)
+    try:
+        return pyrebase.initialize_app(firebase_config)
+    except Exception as e:
+        st.error(f"Erro ao inicializar o Firebase: {e}")
+        return None
+
 
 # =======================================================
 # ⚙️ 2. ESTILOS (Incluindo os Ícones-Botão)
@@ -58,7 +68,7 @@ st.markdown(f"""
     /* Estilos Básicos do Streamlit e Fundo */
     .stApp {{ background-color: #f8f9fa; }}
     /* Adiciona espaço para a barra de navegação fixa */
-    .main {{ padding-bottom: 80px; }} 
+    .main {{ padding-bottom: 80px; }}
     h1, h2, h3 {{ color: #0d1b2a; text-align: center; }}
     
     /* -------------------------------------- */
@@ -164,17 +174,19 @@ OUVIDORIA_URL = "https://www.guarulhos.sp.gov.br/ouvidoria-geral-do-municipio"
 CAMARA_URL = "https://www.camaraguarulhos.sp.gov.br/"
 SERVICOS_URL = "https://portal.guarulhos.sp.gov.br/servicos"
 
+
 # =======================================================
 # 🖼️ 3. Funções de Layout / Páginas
 # =======================================================
-# Nota: Os caminhos 'src' dos ícones esperam que eles estejam na pasta 'static/images'
-# e o Streamlit acessa arquivos estáticos pela raiz.
 
 def main_header():
     # Caminho corrigido para icone_logo.png
+    # Nota: Para que isso funcione, você deve ter uma pasta 'static' com uma subpasta 'images'
+    # e o arquivo 'icone_logo.png' dentro dela.
     st.markdown(f"""
         <h1 style="text-align: left; margin-top: 0;">
-            <img src='icone_logo.png' style='height: 30px; vertical-align: middle; margin-right: 10px;'>
+            <!-- <img src='static/images/icone_logo.png' style='height: 30px; vertical-align: middle; margin-right: 10px;'> -->
+            <!-- Se não tiver o ícone, pode remover a linha acima -->
             Comunica Guarulhos
         </h1>
     """, unsafe_allow_html=True)
@@ -195,7 +207,7 @@ def render_home_page():
         # Usa o ícone icone_ouvidoria.png
         st.markdown(f"""
             <a href="{OUVIDORIA_URL}" target="_blank" class="nav-button" style="width: 100%; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 10px;">
-                <img src="icone_ouvidoria.png" alt="Ouvidoria">
+                <!-- <img src="static/images/icone_ouvidoria.png" alt="Ouvidoria"> -->
                 <span>Ouvidoria</span>
             </a>
         """, unsafe_allow_html=True)
@@ -203,7 +215,7 @@ def render_home_page():
         # Usa o ícone icone_camara.png
         st.markdown(f"""
             <a href="{CAMARA_URL}" target="_blank" class="nav-button" style="width: 100%; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 10px;">
-                <img src="icone_camara.png" alt="Câmara">
+                <!-- <img src="static/images/icone_camara.png" alt="Câmara"> -->
                 <span>Câmara Mun.</span>
             </a>
         """, unsafe_allow_html=True)
@@ -211,7 +223,7 @@ def render_home_page():
     # Usa o ícone icone_servicos.png
     st.markdown(f"""
         <a href="{SERVICOS_URL}" target="_blank" class="nav-button" style="width: 99%; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 20px;">
-            <img src="icone_servicos.png" alt="Serviços Online">
+            <!-- <img src="static/images/icone_servicos.png" alt="Serviços Online"> -->
             <span>Serviços Online da Prefeitura</span>
         </a>
     """, unsafe_allow_html=True)
@@ -222,9 +234,13 @@ def render_home_page():
 
 
 def render_denuncia_page():
-    firebase = init_firebase()
-    db = firebase.database()
-    storage = firebase.storage()
+    firebase_app = init_firebase()
+    if not firebase_app:
+        st.error("Erro de conexão com o banco de dados. Tente novamente mais tarde.")
+        return
+
+    db = firebase_app.database()
+    storage = firebase_app.storage()
     
     st.title("📢 Nova Comunicação")
     st.markdown("Relate o problema para a Ouvidoria Municipal de Guarulhos.")
@@ -235,7 +251,7 @@ def render_denuncia_page():
         "Buraco na Via / Asfalto",
         "Lixo e Entulho Acumulado",
         "Iluminação Pública (Apagada/Queimada)",
-        "Drenagem / Esgoto / Bueros",
+        "Drenagem / Esgoto / Bueiros",
         "Sinalização de Trânsito",
         "Árvore Caída / Poda",
         "Carro Abandonado",
@@ -293,22 +309,29 @@ def render_denuncia_page():
             "protocolo": f"GRL-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
         }
         
-        # O push retorna um objeto com o ID da nova entrada
-        result = db.child("denuncias").push(denuncia)
-        
-        # Salva o ID da denúncia para o usuário ver no histórico
-        if 'user_denuncias_keys' not in st.session_state:
-            st.session_state.user_denuncias_keys = []
-        st.session_state.user_denuncias_keys.append(result['name'])
-        
-        st.success(f"✅ Comunicação enviada com sucesso! Protocolo: *{denuncia['protocolo']}*")
-        st.info("Acompanhe o status na aba *Minhas Demandas*.")
-        set_page('minhas_demandas')
+        try:
+            # O push retorna um objeto com o ID da nova entrada
+            result = db.child("denuncias").push(denuncia)
+            
+            # Salva o ID da denúncia para o usuário ver no histórico
+            if 'user_denuncias_keys' not in st.session_state:
+                st.session_state.user_denuncias_keys = []
+            st.session_state.user_denuncias_keys.append(result['name'])
+            
+            st.success(f"✅ Comunicação enviada com sucesso! Protocolo: *{denuncia['protocolo']}*")
+            st.info("Acompanhe o status na aba *Minhas Demandas*.")
+            set_page('minhas_demandas')
+        except Exception as e:
+            st.error(f"Erro ao enviar a comunicação: {e}")
 
 
 def render_minhas_demandas_page():
-    firebase = init_firebase()
-    db = firebase.database()
+    firebase_app = init_firebase()
+    if not firebase_app:
+        st.error("Erro de conexão com o banco de dados. Tente novamente mais tarde.")
+        return
+
+    db = firebase_app.database()
     st.title("📋 Minhas Demandas")
     st.markdown("Acompanhe o status das comunicações que você enviou.")
 
@@ -351,8 +374,12 @@ def render_minhas_demandas_page():
 
 
 def render_mapa_ocorrencias_page():
-    firebase = init_firebase()
-    db = firebase.database()
+    firebase_app = init_firebase()
+    if not firebase_app:
+        st.error("Erro de conexão com o banco de dados. Tente novamente mais tarde.")
+        return
+
+    db = firebase_app.database()
     st.title("🗺️ Ocorrências na Região")
     st.markdown("Veja e confirme problemas relatados por outros cidadãos.")
     
@@ -374,7 +401,7 @@ def render_mapa_ocorrencias_page():
                     if d.get("confirmacoes", 0) >= 2:
                         confirmadas[key] = d
                 except ValueError:
-                    continue 
+                    continue # Pula entradas com lat/lng inválidas
 
             # Renderiza o Mapa 
             if map_data:
@@ -403,14 +430,20 @@ def render_mapa_ocorrencias_page():
                         
                         if confirma_btn:
                             nova_qtd = d.get("confirmacoes", 0) + 1
-                            db.child("denuncias").child(key).update({"confirmacoes": nova_qtd})
-                            st.success(f"Confirmação adicionada para {d['tipo']}!")
-                            st.rerun()
+                            try:
+                                db.child("denuncias").child(key).update({"confirmacoes": nova_qtd})
+                                st.success(f"Confirmação adicionada para {d['tipo']}!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Erro ao atualizar confirmação: {e}")
                         
                         if resolve_btn:
-                            db.child("denuncias").child(key).update({"status": "Resolvida - Cidadão Confirmou"})
-                            st.success(f"Status de {d['tipo']} atualizado para RESOLVIDA!")
-                            st.rerun()
+                            try:
+                                db.child("denuncias").child(key).update({"status": "Resolvida - Cidadão Confirmou"})
+                                st.success(f"Status de {d['tipo']} atualizado para RESOLVIDA!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Erro ao atualizar status: {e}")
             else:
                 st.info("Nenhum problema com ≥2 confirmações ainda.")
         else:
@@ -448,7 +481,7 @@ st.markdown("""
 # 1. Ícone Home (icone_home.png)
 st.markdown(f"""
     <button class="nav-button {'active' if st.session_state.page == 'home' else ''}" onclick="window.parent.document.querySelector('[data-testid="stSidebarContent"]').scroll(0,0); set_page('home')">
-        <img src="icone_home.png" alt="Início">
+        <!-- <img src="static/images/icone_home.png" alt="Início"> -->
         <span>Início</span>
     </button>
 """, unsafe_allow_html=True)
@@ -456,7 +489,7 @@ st.markdown(f"""
 # 2. Ícone Minhas Demandas (icone_demandas.png)
 st.markdown(f"""
     <button class="nav-button {'active' if st.session_state.page == 'minhas_demandas' else ''}" onclick="window.parent.document.querySelector('[data-testid="stSidebarContent"]').scroll(0,0); set_page('minhas_demandas')">
-        <img src="icone_demandas.png" alt="Demandas">
+        <!-- <img src="static/images/icone_demandas.png" alt="Demandas"> -->
         <span>Demandas</span>
     </button>
 """, unsafe_allow_html=True)
@@ -474,7 +507,7 @@ st.markdown(f"""
 # 4. Ícone Mapa (icone_mapa.png)
 st.markdown(f"""
     <button class="nav-button {'active' if st.session_state.page == 'mapa_ocorrencias' else ''}" onclick="window.parent.document.querySelector('[data-testid="stSidebarContent"]').scroll(0,0); set_page('mapa_ocorrencias')">
-        <img src="icone_mapa.png" alt="Mapa">
+        <!-- <img src="static/images/icone_mapa.png" alt="Mapa"> -->
         <span>Mapa</span>
     </button>
 """, unsafe_allow_html=True)
@@ -482,7 +515,7 @@ st.markdown(f"""
 # 5. Ícone Mais/Serviços (icone_mais.png)
 st.markdown(f"""
     <button class="nav-button" onclick="window.parent.document.querySelector('[data-testid="stSidebarContent"]').scroll(0,0); set_page('home')">
-        <img src="icone_mais.png" alt="Mais">
+        <!-- <img src="static/images/icone_mais.png" alt="Mais"> -->
         <span>Mais</span>
     </button>
 """, unsafe_allow_html=True)
