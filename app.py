@@ -1,5 +1,6 @@
 import streamlit as st
-import pyrebase
+import firebase_admin
+from firebase_admin import credentials, db, storage
 from datetime import datetime
 import base64
 import json
@@ -8,29 +9,58 @@ import uuid
 # =======================================================
 # 🔑 1. CONFIGURAÇÃO DE SEGURANÇA E FIREBASE
 # =======================================================
-# NOTA: As credenciais estão expostas aqui APENAS para fins de teste local.
-# Para produção, use st.secrets ou variáveis de ambiente.
-st.warning("⚠️ Usando credenciais HARDCODED. Configure st.secrets no deploy!")
+# NOTA: Para usar o firebase-admin, você precisa de um arquivo de credenciais JSON.
+# Isso é mais seguro do que expor chaves no código.
+# Para testes, vamos simular o uso de credenciais de ambiente ou st.secrets.
 
-# Corrigido: Removido espaço extra na URL do banco de dados
-firebase_config = {
-    "apiKey": "AIzaSyAj0SlpJXb8xEzL8vWxpaCOqrjU4MsiaeQ", # SUBSTITUA PELA SUA CHAVE
-    "authDomain": "comunica-guarulhos.firebaseapp.com",
-    "databaseURL": "https://comunica-guarulhos-default-rtdb.firebaseio.com/", # Corrigido: removido espaço extra
-    "projectId": "comunica-guarulhos",
-    "storageBucket": "comunica-guarulhos.appspot.com", # Geralmente é appspot.com
-    "messagingSenderId": "849187017943",
-    "appId": "1:849187017943:web:b2f85534675f432c3e4c92"
-}
-
-# Inicializa o Firebase
-@st.cache_resource
-def init_firebase():
+# Verifica se o Firebase já foi inicializado
+if not firebase_admin._apps:
     try:
-        return pyrebase.initialize_app(firebase_config)
+        # Se você tiver o arquivo JSON de credenciais, descomente isto:
+        # cred = credentials.Certificate("caminho_para_seu_arquivo.json")
+        # firebase_admin.initialize_app(cred, {
+        #     'databaseURL': 'https://comunica-guarulhos-default-rtdb.firebaseio.com/',
+        #     'storageBucket': 'comunica-guarulhos.appspot.com'
+        # })
+
+        # OU use credenciais do st.secrets (recomendado para Streamlit Cloud)
+        # Exemplo de como seria no secrets.toml:
+        # [secrets]
+        # firebase_credentials = '''
+        # {
+        #   "type": "service_account",
+        #   "project_id": "comunica-guarulhos",
+        #   "private_key_id": "...",
+        #   "private_key": "-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----\n",
+        #   ...
+        # }
+        # '''
+        # firebase_creds = json.loads(st.secrets["firebase_credentials"])
+        # cred = credentials.Certificate(firebase_creds)
+        # firebase_admin.initialize_app(cred, {
+        #     'databaseURL': st.secrets["firebase_database_url"],
+        #     'storageBucket': st.secrets["firebase_storage_bucket"]
+        # })
+
+        # Para testes locais, sem credenciais reais, vamos inicializar com um mock
+        # Isso NÃO funcionará para operações reais no Firebase.
+        st.warning("⚠️ Firebase não inicializado. Configure credenciais para usar funcionalidades do banco.")
+        firebase_app = None
+
     except Exception as e:
         st.error(f"Erro ao inicializar o Firebase: {e}")
-        return None
+        firebase_app = None
+
+# Funções para interagir com o banco e storage
+def get_firebase_db():
+    if firebase_app:
+        return db
+    return None
+
+def get_firebase_storage():
+    if firebase_app:
+        return storage
+    return None
 
 # =======================================================
 # ⚙️ 2. ESTILOS (Incluindo os Ícones-Botão)
@@ -161,8 +191,6 @@ SERVICOS_URL = "https://portal.guarulhos.sp.gov.br/servicos"
 # =======================================================
 
 def main_header():
-    # Ajuste: O Streamlit serve imagens da pasta 'static/images' ou 'images'
-    # Se os arquivos estiverem na pasta 'images' na raiz do projeto
     st.markdown(f"""
         <h1 style="text-align: left; margin-top: 0;">
             <img src='images/icone_logo.png' style='height: 30px; vertical-align: middle; margin-right: 10px;' onerror="this.style.display='none'">
@@ -183,7 +211,6 @@ def render_home_page():
     col1, col2 = st.columns(2)
 
     with col1:
-        # Usa o ícone icone_ouvidoria.png
         st.markdown(f"""
             <a href="{OUVIDORIA_URL}" target="_blank" class="nav-button" style="width: 100%; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 10px;">
                 <img src='images/icone_ouvidoria.png' alt="Ouvidoria" onerror="this.style.display='none'">
@@ -191,7 +218,6 @@ def render_home_page():
             </a>
         """, unsafe_allow_html=True)
     with col2:
-        # Usa o ícone icone_camara.png
         st.markdown(f"""
             <a href="{CAMARA_URL}" target="_blank" class="nav-button" style="width: 100%; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 10px;">
                 <img src='images/icone_camara.png' alt="Câmara" onerror="this.style.display='none'">
@@ -199,7 +225,6 @@ def render_home_page():
             </a>
         """, unsafe_allow_html=True)
 
-    # Usa o ícone icone_servicos.png
     st.markdown(f"""
         <a href="{SERVICOS_URL}" target="_blank" class="nav-button" style="width: 99%; border: 1px solid #e0e0e0; border-radius: 8px; margin-bottom: 20px;">
             <img src='images/icone_servicos.png' alt="Serviços Online" onerror="this.style.display='none'">
@@ -207,19 +232,15 @@ def render_home_page():
         </a>
     """, unsafe_allow_html=True)
 
-    # Exemplo de Estatísticas
     st.info("✅ *345* demandas resolvidas em 2025.")
     st.warning("🔥 *12* problemas de Iluminação em aberto.")
 
 
 def render_denuncia_page():
-    firebase = init_firebase()
-    if not firebase:
-        st.error("Falha ao conectar ao Firebase.")
+    # --- VERIFICAÇÃO DE CONEXÃO ---
+    if not firebase_admin._apps:
+        st.error("❌ Conexão com o banco de dados indisponível. Funcionalidade desativada temporariamente.")
         return
-
-    db = firebase.database()
-    storage = firebase.storage()
 
     st.title("📢 Nova Comunicação")
     st.markdown("Relate o problema para a Ouvidoria Municipal de Guarulhos.")
@@ -238,7 +259,7 @@ def render_denuncia_page():
         "Outro / Geral"
     ], help="Selecione a categoria para direcionar o órgão correto.")
 
-    # LOCALIZAÇÃO (Com placeholders mais claros)
+    # LOCALIZAÇÃO
     st.subheader("2. Localização")
     st.info("💡 *DICA:* Se estiver no celular, o app tentará preencher a latitude/longitude.")
     lat = st.text_input("Latitude", placeholder="Ex: -23.456", help="Atenção: A precisão é crucial.")
@@ -254,192 +275,85 @@ def render_denuncia_page():
             st.error("❌ Por favor, informe a Latitude e a Longitude.")
             return
 
-        # ----------------------------------------------------
-        # Lógica de Upload de Foto para Firebase Storage com validação
-        # ----------------------------------------------------
+        # Validação de imagem
         foto_url = ""
         if foto_upload is not None:
-            # Validação de tipo e tamanho (ex: 5MB)
-            if foto_upload.size > 5 * 1024 * 1024: # 5MB em bytes
+            if foto_upload.size > 5 * 1024 * 1024: # 5MB
                 st.error("❌ A imagem deve ter no máximo 5MB.")
                 return
-
-            # Validação de extensão
             file_ext = foto_upload.name.split('.')[-1].lower()
             if file_ext not in ['jpg', 'jpeg', 'png']:
                 st.error("❌ Formato de imagem inválido. Use JPG ou PNG.")
                 return
 
-            try:
-                # Gera um nome de arquivo único
-                filename = f"denuncias/{uuid.uuid4()}.{file_ext}"
+            # --- UPLOAD PARA STORAGE AINDA NÃO IMPLEMENTADO SEM CREDENCIAIS ---
+            st.warning("⚠️ Upload de imagem não configurado. A denúncia será salva sem foto.")
+            # storage = get_firebase_storage()
+            # if storage:
+            #     try:
+            #         filename = f"denuncias/{uuid.uuid4()}.{file_ext}"
+            #         bucket = storage.bucket()
+            #         blob = bucket.blob(filename)
+            #         blob.upload_from_file(foto_upload)
+            #         foto_url = blob.public_url
+            #     except Exception as e:
+            #         st.warning(f"⚠️ Erro ao fazer upload da foto. Erro: {str(e)}")
 
-                # O Pyrebase precisa do arquivo em bytes/stream
-                storage.child(filename).put(foto_upload.read())
-
-                # Pega a URL pública (usando a função de download)
-                foto_url = storage.child(filename).get_url(None)
-
-            except Exception as e:
-                st.warning(f"⚠️ Erro ao fazer upload da foto. A denúncia será enviada sem ela. Erro: {str(e)}")
-                # Continua sem a foto
-
-        # ----------------------------------------------------
-        # Lógica de Envio para Realtime Database
-        # ----------------------------------------------------
-        denuncia = {
-            "tipo": tipo,
-            "descricao": descricao,
-            "lat": lat,
-            "lng": lng,
-            "data": datetime.now().isoformat(),
-            "status": "Enviada / Em Análise", # NOVO CAMPO DE STATUS!
-            "foto_url": foto_url,
-            "confirmacoes": 1,
-            "protocolo": f"GRL-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
-        }
-
-        try:
-            # O push retorna um objeto com o ID da nova entrada
-            result = db.child("denuncias").push(denuncia)
-
-            # Salva o ID da denúncia para o usuário ver no histórico
-            if 'user_denuncias_keys' not in st.session_state:
-                st.session_state.user_denuncias_keys = []
-            st.session_state.user_denuncias_keys.append(result['name'])
-
-            st.success(f"✅ Comunicação enviada com sucesso! Protocolo: *{denuncia['protocolo']}*")
-            st.info("Acompanhe o status na aba *Minhas Demandas*.")
-            set_page('minhas_demandas')
-        except Exception as e:
-            st.error(f"❌ Erro ao enviar a comunicação: {str(e)}")
+        # --- ENVIO PARA REALTIME DATABASE AINDA NÃO IMPLEMENTADO SEM CREDENCIAIS ---
+        st.warning("⚠️ Envio para o banco de dados não configurado. A denúncia não será salva.")
+        # db = get_firebase_db()
+        # if db:
+        #     try:
+        #         denuncia = {
+        #             "tipo": tipo,
+        #             "descricao": descricao,
+        #             "lat": lat,
+        #             "lng": lng,
+        #             "data": datetime.now().isoformat(),
+        #             "status": "Enviada / Em Análise",
+        #             "foto_url": foto_url,
+        #             "confirmacoes": 1,
+        #             "protocolo": f"GRL-{datetime.now().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        #         }
+        #         result = db.reference("denuncias").push(denuncia)
+        #         if 'user_denuncias_keys' not in st.session_state:
+        #             st.session_state.user_denuncias_keys = []
+        #         st.session_state.user_denuncias_keys.append(result.key)
+        #         st.success(f"✅ Comunicação enviada com sucesso! Protocolo: *{denuncia['protocolo']}*")
+        #         set_page('minhas_demandas')
+        #     except Exception as e:
+        #         st.error(f"❌ Erro ao enviar a comunicação: {str(e)}")
+        # else:
+        #     st.error("❌ Conexão com o banco de dados indisponível.")
 
 
 def render_minhas_demandas_page():
-    firebase = init_firebase()
-    if not firebase:
-        st.error("Falha ao conectar ao Firebase.")
+    if not firebase_admin._apps:
+        st.error("❌ Conexão com o banco de dados indisponível. Funcionalidade desativada temporariamente.")
         return
 
-    db = firebase.database()
     st.title("📋 Minhas Demandas")
     st.markdown("Acompanhe o status das comunicações que você enviou.")
 
-    # Lógica para mostrar as demandas do usuário
     if 'user_denuncias_keys' not in st.session_state or not st.session_state.user_denuncias_keys:
         st.info("Você ainda não enviou nenhuma comunicação nesta sessão.")
         st.warning("⚠️ *Nota:* O histórico é mantido apenas enquanto você navega. Para um histórico permanente, seria necessário login.")
         return
 
-    try:
-        all_denuncias = db.child("denuncias").get().val()
-
-        if all_denuncias:
-            user_demandas = {k: v for k, v in all_denuncias.items() if k in st.session_state.user_denuncias_keys}
-
-            if user_demandas:
-                sorted_demandas = sorted(user_demandas.values(), key=lambda x: x['data'], reverse=True)
-
-                for d in sorted_demandas:
-                    status_color = "#f99417"
-                    if "Resolvida" in d['status']:
-                         status_color = "#2a9d8f"
-                    elif "Em Execução" in d['status']:
-                         status_color = "#1976d2"
-
-                    st.markdown(f"""
-                        <div class="problem-card" style="border-left: 5px solid {status_color};">
-                            <h4>{d['tipo']} - <span style="color: {status_color};">{d['status']}</span></h4>
-                            <p style="font-size: 0.9rem;">Protocolo: <strong>{d['protocolo']}</strong></p>
-                            <p>{d.get('descricao', 'Sem descrição.')[:70]}...</p>
-                            <p>Data: {d['data'][:10]}</p>
-                            {"<img src='" + d['foto_url'] + "' style='width: 100%; border-radius: 5px; margin-top: 10px;'>" if d.get('foto_url') else ""}
-                        </div>
-                    """, unsafe_allow_html=True)
-            else:
-                st.info("Nenhuma demanda encontrada no seu histórico.")
-
-    except Exception as e:
-        st.error(f"❌ Erro ao carregar demandas: {str(e)}")
+    st.info("❌ Histórico de denúncias não configurado sem banco de dados.")
+    # Código para carregar do banco vai aqui quando estiver configurado
 
 
 def render_mapa_ocorrencias_page():
-    firebase = init_firebase()
-    if not firebase:
-        st.error("Falha ao conectar ao Firebase.")
+    if not firebase_admin._apps:
+        st.error("❌ Conexão com o banco de dados indisponível. Funcionalidade desativada temporariamente.")
         return
 
-    db = firebase.database()
     st.title("🗺️ Ocorrências na Região")
     st.markdown("Veja e confirme problemas relatados por outros cidadãos.")
 
-    try:
-        denuncias = db.child("denuncias").get().val()
-
-        if denuncias:
-            map_data = []
-            confirmadas = {}
-            for key, d in denuncias.items():
-                try:
-                    lat = float(d['lat'])
-                    lng = float(d['lng'])
-                    map_data.append({
-                        'lat': lat,
-                        'lon': lng,
-                        'size': d.get("confirmacoes", 1) * 2
-                    })
-                    if d.get("confirmacoes", 0) >= 2:
-                        confirmadas[key] = d
-                except ValueError:
-                    continue # Ignora entradas com lat/lng inválidos
-
-            # Renderiza o Mapa
-            if map_data:
-                st.map(map_data, zoom=12)
-            else:
-                 st.info("Aguardando coordenadas válidas para exibir o mapa.")
-
-            st.subheader("Problemas Populares (≥2 Confirmações)")
-            if confirmadas:
-                for key, d in confirmadas.items():
-                    st.markdown(f"""
-                    <div class="problem-card">
-                        <strong>{d['tipo']}</strong><br>
-                        📍 Protocolo: {d['protocolo']}<br>
-                        👥 {d['confirmacoes']} moradores confirmaram<br>
-                        📅 Status: <span style="color: #f99417;">{d['status']}</span>
-                    </div>
-                    """, unsafe_allow_html=True)
-
-                    with st.form(key=f"form_{key}"):
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            confirma_btn = st.form_submit_button("👍 Também vejo isso")
-                        with col2:
-                            resolve_btn = st.form_submit_button("✅ Resolvido (pela Prefeitura)")
-
-                        if confirma_btn:
-                            nova_qtd = d.get("confirmacoes", 0) + 1
-                            try:
-                                db.child("denuncias").child(key).update({"confirmacoes": nova_qtd})
-                                st.success(f"Confirmação adicionada para {d['tipo']}!")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Erro ao confirmar: {str(e)}")
-
-                        if resolve_btn:
-                            try:
-                                db.child("denuncias").child(key).update({"status": "Resolvida - Cidadão Confirmou"})
-                                st.success(f"Status de {d['tipo']} atualizado para RESOLVIDA!")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Erro ao resolver: {str(e)}")
-            else:
-                st.info("Nenhum problema com ≥2 confirmações ainda.")
-        else:
-            st.info("Nenhum problema registrado até agora.")
-    except Exception as e:
-        st.warning(f"⚠️ Sem conexão com o banco de dados. {str(e)}")
+    st.info("❌ Ocorrências não configuradas sem banco de dados.")
+    # Código para carregar do banco vai aqui quando estiver configurado
 
 
 # =======================================================
@@ -460,14 +374,11 @@ elif st.session_state.page == 'nova_comunicacao':
 # ----------------------------------------------------
 # Barra de Navegação Inferior (Fixa)
 # ----------------------------------------------------
-# Nota: Esta barra usa JavaScript simples (onclick) para mudar o estado Streamlit (set_page)
 
-# Inicia a barra
 st.markdown("""
 <div class="footer-nav">
 """, unsafe_allow_html=True)
 
-# 1. Ícone Home (icone_home.png)
 st.markdown(f"""
     <button class="nav-button {'active' if st.session_state.page == 'home' else ''}" onclick="window.parent.document.querySelector('[data-testid="stSidebarContent"]').scroll(0,0); set_page('home')">
         <img src='images/icone_home.png' alt="Início" onerror="this.style.display='none'">
@@ -475,7 +386,6 @@ st.markdown(f"""
     </button>
 """, unsafe_allow_html=True)
 
-# 2. Ícone Minhas Demandas (icone_demandas.png)
 st.markdown(f"""
     <button class="nav-button {'active' if st.session_state.page == 'minhas_demandas' else ''}" onclick="window.parent.document.querySelector('[data-testid="stSidebarContent"]').scroll(0,0); set_page('minhas_demandas')">
         <img src='images/icone_demandas.png' alt="Demandas" onerror="this.style.display='none'">
@@ -483,7 +393,6 @@ st.markdown(f"""
     </button>
 """, unsafe_allow_html=True)
 
-# 3. Botão Flutuante (Nova Comunicação) - ícone + ou icone_comunicar.png se preferir
 st.markdown(f"""
     <div class="fab-container">
         <button class="fab-button {'active-fab' if st.session_state.page == 'nova_comunicacao' else ''}" onclick="window.parent.document.querySelector('[data-testid="stSidebarContent"]').scroll(0,0); set_page('nova_comunicacao')">
@@ -492,8 +401,6 @@ st.markdown(f"""
     </div>
 """, unsafe_allow_html=True)
 
-
-# 4. Ícone Mapa (icone_mapa.png)
 st.markdown(f"""
     <button class="nav-button {'active' if st.session_state.page == 'mapa_ocorrencias' else ''}" onclick="window.parent.document.querySelector('[data-testid="stSidebarContent"]').scroll(0,0); set_page('mapa_ocorrencias')">
         <img src='images/icone_mapa.png' alt="Mapa" onerror="this.style.display='none'">
@@ -501,7 +408,6 @@ st.markdown(f"""
     </button>
 """, unsafe_allow_html=True)
 
-# 5. Ícone Mais/Serviços (icone_mais.png)
 st.markdown(f"""
     <button class="nav-button" onclick="window.parent.document.querySelector('[data-testid="stSidebarContent"]').scroll(0,0); set_page('home')">
         <img src='images/icone_mais.png' alt="Mais" onerror="this.style.display='none'">
@@ -509,8 +415,6 @@ st.markdown(f"""
     </button>
 """, unsafe_allow_html=True)
 
-# Finaliza a barra
 st.markdown("</div>", unsafe_allow_html=True)
 
-# Rodapé simples (opcional, pode ser removido pois a barra de nav já está no rodapé)
 st.markdown('<div class="footer">Comunica Guarulhos — Cidadania urbana com respeito.</div>', unsafe_allow_html=True)
